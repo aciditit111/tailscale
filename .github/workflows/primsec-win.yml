@@ -1,0 +1,34 @@
+# PrimSec: сборка своей сетевой службы из открытого кода Tailscale.
+# Два бинарника Windows x64: tailscaled.exe (служба) + tailscale.exe (CLI).
+# Версия прошивается их же скриптом измерения (ldflags), чтобы headscale
+# и статусные поля видели нормальный номер, а не "dev".
+name: primsec-win
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build tailscaled + tailscale
+        shell: bash
+        run: |
+          mkdir -p out
+          eval "$(./build_dist.sh shellvars)"
+          LDFLAGS="-X tailscale.com/version.longStamp=${VERSION_LONG} -X tailscale.com/version.shortStamp=${VERSION_SHORT}"
+          GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o out/tailscaled.exe ./cmd/tailscaled
+          GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o out/tailscale.exe ./cmd/tailscale
+          ls -la out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PrimSecNet-Windows-x64
+          path: out/
